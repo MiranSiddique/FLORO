@@ -4,27 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:file_picker/file_picker.dart';
-
-class PlantIdentification {
-  final String scientificName;
-  final String commonNames;
-  final List<Map<String, dynamic>> results;
-
-  PlantIdentification({
-    required this.scientificName,
-    required this.commonNames,
-    required this.results,
-  });
-
-  factory PlantIdentification.fromJson(Map<String, dynamic> json) {
-    return PlantIdentification(
-      scientificName: json['best_match_scientific_name'] ?? 'Unknown',
-      commonNames: json['best_match_common_names'] ?? 'Unknown',
-      results: List<Map<String, dynamic>>.from(json['results']['results'] ?? []),
-    );
-  }
-}
+import 'response_screen.dart';
 
 class IdentifyPlantScreen extends StatefulWidget {
   const IdentifyPlantScreen({super.key});
@@ -35,7 +15,6 @@ class IdentifyPlantScreen extends StatefulWidget {
 
 class _IdentifyPlantScreenState extends State<IdentifyPlantScreen> {
   dynamic _image;
-  Map<String, dynamic>? _identificationResult;
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
 
@@ -43,29 +22,15 @@ class _IdentifyPlantScreenState extends State<IdentifyPlantScreen> {
     try {
       setState(() {
         _isLoading = true;
-        _identificationResult = null;
       });
 
-      if (kIsWeb) {
-        FilePickerResult? result = await FilePicker.platform.pickFiles(
-          type: FileType.image,
-        );
-
-        if (result != null) {
-          setState(() {
-            _image = result.files.first.bytes;
-          });
-          await _sendImageToBackend(result.files.first.bytes!);
-        }
-      } else {
-        final pickedFile = await _picker.pickImage(source: source);
-        if (pickedFile != null) {
-          final imageBytes = await File(pickedFile.path).readAsBytes();
-          setState(() {
-            _image = File(pickedFile.path);
-          });
-          await _sendImageToBackend(imageBytes);
-        }
+      final pickedFile = await _picker.pickImage(source: source);
+      if (pickedFile != null) {
+        final imageBytes = await pickedFile.readAsBytes();
+        setState(() {
+          _image = kIsWeb ? imageBytes : File(pickedFile.path);
+        });
+        await _sendImageToBackend(imageBytes);
       }
     } catch (e) {
       _showError('Error picking image: $e');
@@ -89,18 +54,23 @@ class _IdentifyPlantScreenState extends State<IdentifyPlantScreen> {
         ),
       );
 
-      print('Sending request to: $uri');
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
-
       if (response.statusCode == 201 || response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          _identificationResult = data;
-        });
+        if (!mounted) return;
+        
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ResponseScreen(
+              identificationResult: data,
+              image: _image,
+              isWebImage: kIsWeb,
+            ),
+          ),
+        );
       } else {
         throw Exception('Server returned ${response.statusCode}: ${response.body}');
       }
@@ -110,100 +80,129 @@ class _IdentifyPlantScreenState extends State<IdentifyPlantScreen> {
   }
 
   void _showError(String message) {
-    print('Error: $message');
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red.shade800,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Plant Identifier'),
-        backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_image != null)
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: kIsWeb
-                      ? Image.memory(_image, fit: BoxFit.cover)
-                      : Image.file(_image, fit: BoxFit.cover),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.primaryContainer,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Text(
+                      'Plant Identifier',
+                      style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Take or select a photo of a plant to identify it',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.black54,
+                          ),
+                    ),
+                  ],
                 ),
               ),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
-              onPressed: _isLoading ? null : () => _pickImage(ImageSource.camera),
-              icon: const Icon(Icons.camera_alt),
-              label: const Text('Take Photo'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              onPressed: _isLoading ? null : () => _pickImage(ImageSource.gallery),
-              icon: const Icon(Icons.photo_library),
-              label: const Text('Choose from Gallery'),
-            ),
-            if (_isLoading) ...[
-              const SizedBox(height: 20),
-              const Center(child: CircularProgressIndicator()),
-            ],
-            if (_identificationResult != null) ...[
-              const SizedBox(height: 20),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Scientific Name: ${_identificationResult!['best_match_scientific_name']}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Common Names: ${_identificationResult!['best_match_common_names']}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Other Possible Matches:',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ...(_identificationResult!['results']['results'] as List)
-                          .take(3)
-                          .map((result) => Padding(
-                                padding: const EdgeInsets.only(bottom: 8.0),
-                                child: Text(
-                                  '${result['scientific_name']} (${(result['score'] * 100).toStringAsFixed(1)}%)',
-                                  style: const TextStyle(fontSize: 14),
+              Expanded(
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_image != null)
+                          Container(
+                            width: double.infinity,
+                            height: 300,
+                            margin: const EdgeInsets.only(bottom: 32),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  spreadRadius: 2,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
                                 ),
-                              ))
-                          .toList(),
-                    ],
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: kIsWeb
+                                  ? Image.memory(_image, fit: BoxFit.cover)
+                                  : Image.file(_image, fit: BoxFit.cover),
+                            ),
+                          ),
+                        Card(
+                          elevation: 8,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () => _pickImage(ImageSource.camera),
+                                  icon: const Icon(Icons.camera_alt),
+                                  label: const Text('Take Photo'),
+                                  style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size(double.infinity, 50),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                ElevatedButton.icon(
+                                  onPressed: _isLoading
+                                      ? null
+                                      : () => _pickImage(ImageSource.gallery),
+                                  icon: const Icon(Icons.photo_library),
+                                  label: const Text('Choose from Gallery'),
+                                  style: ElevatedButton.styleFrom(
+                                    minimumSize: const Size(double.infinity, 50),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_isLoading) ...[
+                          const SizedBox(height: 32),
+                          CircularProgressIndicator(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
