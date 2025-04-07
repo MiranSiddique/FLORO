@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'plant_details_screen.dart';
 
 class ResponseScreen extends StatelessWidget {
   final Map<String, dynamic> identificationResult;
@@ -66,11 +69,85 @@ class ResponseScreen extends StatelessWidget {
                   _buildMainResult(),
                   const SizedBox(height: 24),
                   _buildOtherMatches(),
+                  const SizedBox(height: 32),
+                  _buildKnowMoreButton(context),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildKnowMoreButton(BuildContext context) {
+    return Center(
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          try {
+            // Show loading indicator
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Loading plant details...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+            
+            // Get the plant name
+            final plantName = identificationResult['best_match_scientific_name'] ?? 'Unknown Plant';
+            
+            // Make API request to get plant details
+            final response = await http.post(
+              Uri.parse('http://127.0.0.1:8000/api/plant-details/'),
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'plant_name': plantName,
+              }),
+            );
+            
+            if (!context.mounted) return;
+            
+            if (response.statusCode == 200) {
+              final additionalInfo = jsonDecode(response.body);
+              
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PlantDetailsScreen(
+                    plantName: plantName,
+                    additionalInfo: additionalInfo,
+                  ),
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Failed to load plant details: ${response.statusCode}'),
+                  backgroundColor: Colors.red.shade800,
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          } catch (e) {
+            if (!context.mounted) return;
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error: $e'),
+                backgroundColor: Colors.red.shade800,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        },
+        icon: const Icon(Icons.info_outline),
+        label: const Text('Know more about this plant'),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
       ),
     );
   }

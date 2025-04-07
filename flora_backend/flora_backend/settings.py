@@ -136,3 +136,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # PlantNet API Key
 PLANTNET_API_KEY = os.getenv('PLANTNET_API_KEY')
+
+# GROQ API Key
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')

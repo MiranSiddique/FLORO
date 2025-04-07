@@ -112,7 +112,7 @@ class _IdentifyPlantScreenState extends State<IdentifyPlantScreen> {
                 child: Column(
                   children: [
                     Text(
-                      'Plant Identifier',
+                      'FLORA',
                       style: Theme.of(context).textTheme.headlineLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: Theme.of(context).colorScheme.primary,
