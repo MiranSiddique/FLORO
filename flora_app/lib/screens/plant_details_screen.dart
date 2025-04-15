@@ -1,14 +1,34 @@
+// plant_details_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart'; // Keep this import
 
 class PlantDetailsScreen extends StatelessWidget {
   final String plantName;
-  final Map<String, dynamic> additionalInfo;
+  final Map<String, dynamic> additionalInfo; // From GROQ
+  final List<Map<String, dynamic>> purchaseLinks; // From initial identification
 
   const PlantDetailsScreen({
     super.key,
     required this.plantName,
-    required this.additionalInfo,
+    required this.additionalInfo, // Keep this
+    required this.purchaseLinks, // Keep this
   });
+
+  // --- Helper function to launch URL (Keep this) ---
+  Future<void> _launchUrl(String urlString, BuildContext context) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      // Show error to user if launch fails
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch $urlString')),
+        );
+      }
+      print('Could not launch $urlString');
+    }
+  }
+  // --- End Helper function ---
 
   @override
   Widget build(BuildContext context) {
@@ -18,26 +38,35 @@ class PlantDetailsScreen extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
       ),
       body: SingleChildScrollView(
+        // Ensures content is scrollable
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // --- Keep original sections ---
             _buildHeader(context),
             const SizedBox(height: 24),
-            _buildIntroduction(),
+            _buildIntroduction(), // Display GROQ Intro
             const SizedBox(height: 16),
-            _buildHistory(),
+            _buildHistory(), // Display GROQ History
             const SizedBox(height: 16),
-            _buildFacts(),
+            _buildFacts(), // Display GROQ Facts
             const SizedBox(height: 16),
-            _buildUsage(),
+            _buildUsage(), // Display GROQ Usage
+            const SizedBox(height: 24), // Add spacing before the new section
+            // --- Add the purchase links section ---
+            _buildPurchaseLinks(context),
+            const SizedBox(height: 16), // Optional padding at the bottom
           ],
         ),
       ),
     );
   }
 
+  // --- Keep ALL original build methods for GROQ data ---
+
   Widget _buildHeader(BuildContext context) {
+    // No changes needed here - keep original
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -69,7 +98,8 @@ class PlantDetailsScreen extends StatelessWidget {
           Text(
             'Learn more about this plant',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  color:
+                      Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                 ),
             textAlign: TextAlign.center,
           ),
@@ -79,10 +109,13 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildIntroduction() {
-    if (!additionalInfo.containsKey('introduction') || additionalInfo['introduction'] == null) {
+    // No changes needed here - keep original
+    if (!additionalInfo.containsKey('introduction') ||
+        additionalInfo['introduction'] == null ||
+        (additionalInfo['introduction'] as String).isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -117,10 +150,13 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildHistory() {
-    if (!additionalInfo.containsKey('history') || additionalInfo['history'] == null) {
+    // No changes needed here - keep original
+    if (!additionalInfo.containsKey('history') ||
+        additionalInfo['history'] == null ||
+        (additionalInfo['history'] as String).isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -155,12 +191,13 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildFacts() {
-    if (!additionalInfo.containsKey('facts') || 
-        !(additionalInfo['facts'] is List) || 
+    // No changes needed here - keep original
+    if (!additionalInfo.containsKey('facts') ||
+        !(additionalInfo['facts'] is List) ||
         (additionalInfo['facts'] as List).isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -191,7 +228,11 @@ class PlantDetailsScreen extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('•  ', style: TextStyle(fontSize: 16, color: Colors.green[700], fontWeight: FontWeight.bold)),
+                    Text('•  ',
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.bold)),
                     Expanded(
                       child: Text(
                         additionalInfo['facts'][index].toString(),
@@ -209,12 +250,13 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildUsage() {
-    if (!additionalInfo.containsKey('usage') || 
-        !(additionalInfo['usage'] is List) || 
+    // No changes needed here - keep original
+    if (!additionalInfo.containsKey('usage') ||
+        !(additionalInfo['usage'] is List) ||
         (additionalInfo['usage'] as List).isEmpty) {
       return const SizedBox.shrink();
     }
-    
+
     return Card(
       elevation: 3,
       child: Padding(
@@ -245,7 +287,11 @@ class PlantDetailsScreen extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('•  ', style: TextStyle(fontSize: 16, color: Colors.green[700], fontWeight: FontWeight.bold)),
+                    Text('•  ',
+                        style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.green[700],
+                            fontWeight: FontWeight.bold)),
                     Expanded(
                       child: Text(
                         additionalInfo['usage'][index].toString(),
@@ -261,4 +307,65 @@ class PlantDetailsScreen extends StatelessWidget {
       ),
     );
   }
+
+  // --- Keep the new method for Purchase Links ---
+  Widget _buildPurchaseLinks(BuildContext context) {
+    if (purchaseLinks.isEmpty) {
+      return const SizedBox.shrink(); // Don't show section if no links
+    }
+
+    return Card(
+      elevation: 3,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              // Consistent styling with other sections
+              children: [
+                Icon(Icons.shopping_cart_outlined,
+                    color: Colors.deepOrange[
+                        600]), // Changed color slightly for distinction
+                const SizedBox(width: 8),
+                Text(
+                  'Where to Buy (Online Search)',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepOrange[700], // Match icon color
+                  ),
+                ),
+              ],
+            ),
+            const Divider(),
+            const SizedBox(height: 8),
+            // Use ListView.separated for dividers between items
+            ListView.separated(
+              shrinkWrap: true, // Important inside SingleChildScrollView
+              physics:
+                  const NeverScrollableScrollPhysics(), // Disable scrolling for inner list
+              itemCount: purchaseLinks.length,
+              itemBuilder: (context, index) {
+                final linkData = purchaseLinks[index];
+                final String siteName = linkData['site_name'] ?? 'Unknown Site';
+                final String url = linkData['url'] ?? '';
+
+                return ListTile(
+                  leading: const Icon(Icons.storefront),
+                  title: Text('Search on $siteName'),
+                  trailing: const Icon(Icons.open_in_new, size: 18),
+                  onTap: url.isNotEmpty ? () => _launchUrl(url, context) : null,
+                  enabled: url.isNotEmpty,
+                  dense: true,
+                );
+              },
+              separatorBuilder: (context, index) => const Divider(height: 1),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // --- End Purchase Links Method ---
 }

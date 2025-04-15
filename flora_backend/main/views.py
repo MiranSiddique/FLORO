@@ -1,3 +1,5 @@
+# main/views.py
+
 import os
 import json
 import time
@@ -5,6 +7,7 @@ import tempfile
 import requests
 import logging
 import shutil
+import urllib.parse  # <-- Import this
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.views import APIView
@@ -44,7 +47,7 @@ class IdentifyPlantView(viewsets.ModelViewSet):
         # Create a temporary file outside Django's media system
         temp_dir = tempfile.mkdtemp()
         temp_file_path = os.path.join(temp_dir, "temp_plant_image.jpg")
-        plant_instance = None
+        plant_instance = None # Initialize to None
 
         try:
             # Save the uploaded image to our temp file
@@ -54,9 +57,8 @@ class IdentifyPlantView(viewsets.ModelViewSet):
 
             logger.info(f"Image saved temporarily at: {temp_file_path}")
 
-            # Still create a database record but don't rely on its file path
-            plant_instance = IdentifiedPlant(image=uploaded_image)
-            plant_instance.save()
+            # Removed temporary plant instance creation here, as it's deleted anyway.
+            # If you need it for other reasons, keep it, but ensure it's handled.
 
             # Call PlantNet API using our temp file
             url = "https://my-api.plantnet.org/v2/identify/all"
@@ -64,6 +66,9 @@ class IdentifyPlantView(viewsets.ModelViewSet):
 
             if not api_key:
                 logger.error("PlantNet API key not found in settings")
+                # Clean up temp file before returning error
+                if os.path.exists(temp_dir):
+                    shutil.rmtree(temp_dir, ignore_errors=True)
                 return Response(
                     {"error": "PlantNet API key not configured"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -81,7 +86,7 @@ class IdentifyPlantView(viewsets.ModelViewSet):
                     logger.info("Successfully received PlantNet data")
 
                     # Extract PlantNet results
-                    best_match = plantnet_data.get("bestMatch")
+                    best_match_scientific = plantnet_data.get("bestMatch")
                     results = plantnet_data.get("results", [])
 
                     if not results:
@@ -92,11 +97,20 @@ class IdentifyPlantView(viewsets.ModelViewSet):
                         )
 
                     extracted_results = []
-                    for result in results:
+                    first_result_common_names = []
+                    first_result_scientific_name = None
+
+                    for i, result in enumerate(results):
                         species_data = result.get("species", {})
                         common_names = species_data.get("commonNames", [])
-                        scientific_name = species_data.get("scientificName")
+                        scientific_name = species_data.get("scientificNameWithoutAuthor") # Often cleaner than scientificName
+                        if not scientific_name:
+                           scientific_name = species_data.get("scientificName") # Fallback
                         score = result.get("score")
+
+                        if i == 0: # Store details of the top result
+                            first_result_common_names = common_names
+                            first_result_scientific_name = scientific_name
 
                         extracted_result = {
                             "scientific_name": scientific_name,
@@ -105,28 +119,53 @@ class IdentifyPlantView(viewsets.ModelViewSet):
                         }
                         extracted_results.append(extracted_result)
 
-                    # Get plant name for the response
-                    plant_name = (
-                        best_match
-                        if best_match
-                        else extracted_results[0]["scientific_name"]
-                    )
-                    logger.info(f"Identified plant: {plant_name}")
+                    # --- Determine the best name to use for search links ---
+                    # Prioritize common name if available, otherwise use scientific name
+                    plant_name_for_search = None
+                    if first_result_common_names:
+                        plant_name_for_search = first_result_common_names[0] # Use the first common name
+                    elif best_match_scientific:
+                         plant_name_for_search = best_match_scientific
+                    elif first_result_scientific_name:
+                        plant_name_for_search = first_result_scientific_name
 
-                    # Prepare basic response without GROQ data
+                    if plant_name_for_search:
+                        logger.info(f"Using '{plant_name_for_search}' for purchase links.")
+                        # --- Generate Purchase Links ---
+                        encoded_plant_name = urllib.parse.quote_plus(plant_name_for_search)
+                        purchase_links = [
+                            {
+                                "site_name": "Google Shopping",
+                                "url": f"https://www.google.com/search?tbm=shop&q={encoded_plant_name}"
+                            },
+                            {
+                                "site_name": "Amazon",
+                                "url": f"https://www.amazon.in/s?k={encoded_plant_name}"
+                            },
+                            {
+                                "site_name": "Etsy",
+                                "url": f"https://www.etsy.com/search?q={encoded_plant_name}"
+                            },
+                            # Add more sites if desired
+                        ]
+                        # --- End Generate Purchase Links ---
+                    else:
+                        logger.warning("Could not determine a suitable plant name for search links.")
+                        purchase_links = [] # Return empty list if no name found
+
+
+                    # Prepare response data
                     response_data = {
-                        "best_match_scientific_name": plant_name,
-                        "best_match_common_names": (
-                            ", ".join(extracted_results[0]["common_names"])
-                            if extracted_results
-                            and extracted_results[0]["common_names"]
-                            else ""
-                        ),
-                        "results": {
-                            "best_match": best_match,
+                        # Use the specific names identified above
+                        "best_match_scientific_name": first_result_scientific_name or best_match_scientific,
+                        "best_match_common_names": ", ".join(first_result_common_names),
+                        "results": { # Keep the original structure if Flutter expects it
+                            "best_match": best_match_scientific, # Keep original bestMatch if needed
                             "results": extracted_results,
-                        },
+                         },
+                         "purchase_links": purchase_links # <-- Add the links here
                     }
+
 
                     return Response(response_data, status=status.HTTP_200_OK)
 
@@ -164,15 +203,9 @@ class IdentifyPlantView(viewsets.ModelViewSet):
             )
 
         finally:
-            # Clean up resources in finally block to ensure it happens regardless of success/failure
+            # Clean up resources in finally block
             try:
-                # Clean up the database record
-                if plant_instance:
-                    plant_instance.delete()
-                    logger.info("Deleted database entry")
-
-                # Clean up the temp directory with a delay to ensure file handles are released
-                time.sleep(0.5)  # Small delay to let Windows release file handles
+                # Clean up the temp directory
                 if os.path.exists(temp_dir):
                     shutil.rmtree(temp_dir, ignore_errors=True)
                     logger.info(f"Deleted temporary directory: {temp_dir}")
@@ -183,10 +216,10 @@ class IdentifyPlantView(viewsets.ModelViewSet):
 class PlantDetailsView(APIView):
     """
     API endpoint for getting detailed information about a plant from GROQ
+    (No changes needed in this view)
     """
-
     def post(self, request, format=None):
-        # Get plant name from request data
+        # ... (keep existing code for PlantDetailsView) ...
         plant_name = request.data.get("plant_name")
 
         if not plant_name:

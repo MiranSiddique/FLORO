@@ -12,6 +12,8 @@ dependencies:
   cupertino_icons: ^1.0.6
   image_picker: ^1.0.7
   http: ^1.2.0
+  provider: ^6.0.5 # Or your state management package version
+  url_launcher: ^6.1.14 # Use the latest version
 
 dev_dependencies:
   flutter_test:
