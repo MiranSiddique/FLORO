@@ -7,7 +7,7 @@ import tempfile
 import requests
 import logging
 import shutil
-import urllib.parse  # <-- Import this
+import urllib.parse  
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.views import APIView
@@ -56,9 +56,6 @@ class IdentifyPlantView(viewsets.ModelViewSet):
                     f.write(chunk)
 
             logger.info(f"Image saved temporarily at: {temp_file_path}")
-
-            # Removed temporary plant instance creation here, as it's deleted anyway.
-            # If you need it for other reasons, keep it, but ensure it's handled.
 
             # Call PlantNet API using our temp file
             url = "https://my-api.plantnet.org/v2/identify/all"
@@ -156,14 +153,13 @@ class IdentifyPlantView(viewsets.ModelViewSet):
 
                     # Prepare response data
                     response_data = {
-                        # Use the specific names identified above
                         "best_match_scientific_name": first_result_scientific_name or best_match_scientific,
                         "best_match_common_names": ", ".join(first_result_common_names),
-                        "results": { # Keep the original structure if Flutter expects it
-                            "best_match": best_match_scientific, # Keep original bestMatch if needed
+                        "results": { 
+                            "best_match": best_match_scientific,
                             "results": extracted_results,
                          },
-                         "purchase_links": purchase_links # <-- Add the links here
+                         "purchase_links": purchase_links 
                     }
 
 
@@ -219,7 +215,6 @@ class PlantDetailsView(APIView):
     (No changes needed in this view)
     """
     def post(self, request, format=None):
-        # ... (keep existing code for PlantDetailsView) ...
         plant_name = request.data.get("plant_name")
 
         if not plant_name:

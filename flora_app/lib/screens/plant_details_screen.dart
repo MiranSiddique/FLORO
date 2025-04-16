@@ -1,7 +1,7 @@
 // plant_details_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart'; // Keep this import
+import 'package:url_launcher/url_launcher.dart';
 
 class PlantDetailsScreen extends StatelessWidget {
   final String plantName;
@@ -11,11 +11,11 @@ class PlantDetailsScreen extends StatelessWidget {
   const PlantDetailsScreen({
     super.key,
     required this.plantName,
-    required this.additionalInfo, // Keep this
-    required this.purchaseLinks, // Keep this
+    required this.additionalInfo, 
+    required this.purchaseLinks, 
   });
 
-  // --- Helper function to launch URL (Keep this) ---
+  // --- Helper function to launch URL ---
   Future<void> _launchUrl(String urlString, BuildContext context) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -43,7 +43,6 @@ class PlantDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- Keep original sections ---
             _buildHeader(context),
             const SizedBox(height: 24),
             _buildIntroduction(), // Display GROQ Intro
@@ -63,10 +62,9 @@ class PlantDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- Keep ALL original build methods for GROQ data ---
+  // --- Build methods for GROQ data ---
 
   Widget _buildHeader(BuildContext context) {
-    // No changes needed here - keep original
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -109,7 +107,6 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildIntroduction() {
-    // No changes needed here - keep original
     if (!additionalInfo.containsKey('introduction') ||
         additionalInfo['introduction'] == null ||
         (additionalInfo['introduction'] as String).isEmpty) {
@@ -150,7 +147,6 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildHistory() {
-    // No changes needed here - keep original
     if (!additionalInfo.containsKey('history') ||
         additionalInfo['history'] == null ||
         (additionalInfo['history'] as String).isEmpty) {
@@ -191,7 +187,6 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildFacts() {
-    // No changes needed here - keep original
     if (!additionalInfo.containsKey('facts') ||
         !(additionalInfo['facts'] is List) ||
         (additionalInfo['facts'] as List).isEmpty) {
@@ -250,7 +245,6 @@ class PlantDetailsScreen extends StatelessWidget {
   }
 
   Widget _buildUsage() {
-    // No changes needed here - keep original
     if (!additionalInfo.containsKey('usage') ||
         !(additionalInfo['usage'] is List) ||
         (additionalInfo['usage'] as List).isEmpty) {
@@ -308,7 +302,7 @@ class PlantDetailsScreen extends StatelessWidget {
     );
   }
 
-  // --- Keep the new method for Purchase Links ---
+  // --- method for Purchase Links ---
   Widget _buildPurchaseLinks(BuildContext context) {
     if (purchaseLinks.isEmpty) {
       return const SizedBox.shrink(); // Don't show section if no links
@@ -326,21 +320,20 @@ class PlantDetailsScreen extends StatelessWidget {
               children: [
                 Icon(Icons.shopping_cart_outlined,
                     color: Colors.deepOrange[
-                        600]), // Changed color slightly for distinction
+                        600]), 
                 const SizedBox(width: 8),
                 Text(
                   'Where to Buy (Online Search)',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.deepOrange[700], // Match icon color
+                    color: Colors.deepOrange[700], 
                   ),
                 ),
               ],
             ),
             const Divider(),
             const SizedBox(height: 8),
-            // Use ListView.separated for dividers between items
             ListView.separated(
               shrinkWrap: true, // Important inside SingleChildScrollView
               physics:

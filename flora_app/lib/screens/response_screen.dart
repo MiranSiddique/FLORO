@@ -5,7 +5,6 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-// Ensure PlantDetailsScreen is correctly updated from previous steps
 import 'plant_details_screen.dart';
 
 class ResponseScreen extends StatelessWidget {
@@ -344,7 +343,6 @@ class ResponseScreen extends StatelessWidget {
 
             // Make API request to get GROQ plant details
             final response = await http.post(
-              // Ensure your API endpoint is correct
               Uri.parse('http://127.0.0.1:8000/api/plant-details/'),
               headers: {'Content-Type': 'application/json'},
               body: jsonEncode({'plant_name': plantName}),
